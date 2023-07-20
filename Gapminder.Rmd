@@ -1,0 +1,364 @@
+---
+title: "gAPMINDER dataset Analysis"
+
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1.1)Explore life expectancy
+
+### 1)Life Expectancy is defined as the average number of years or how long a newborn can expect to live if the current death/mortality rates do not change.Period and cohort life expectancy give two different measures of life expectancy. Period life expectancy assumes mortality rates remain constant into the future, while cohort life expectancy uses projected changes in future mortality rates.Here as mentioned we use period life expectancy.
+Definition reference https://www.ons.gov.uk/peoplepopulationandcommunity/healthandsocialcare/healthandlifeexpectancies/methodologies
+/guidetointerpretingpastandprojectedperiodandcohortlifetables 
+
+
+### 2)
+```{r}
+library(tidyverse)
+gapminder<-read.csv("./data/gapminder.csv.bz2",sep="\t")
+
+head(gapminder)
+dim(gapminder)
+
+#renaming time to year
+gapminder=gapminder %>% rename("year"="time")
+
+dim(gapminder)
+sum(is.na(gapminder))
+colSums(is.na(gapminder))
+
+#Removing NA from life expectancy, year, name(country name)
+
+gapminder=gapminder[complete.cases(gapminder[c(7,10,9)]),]
+dim(gapminder)
+colSums(is.na(gapminder))
+
+
+#names has ""  in it hence removing those
+gapminder=gapminder[!(gapminder$name==""),]
+dim(gapminder)
+
+```
+### First we read the data and check the number of rows and columns, then as written in the assignment I have changed the time column name to year. Next we check how many total NA values are present. Then to see where these NA values are present/in which columns I have used colSums. Initially I removed NA values for name, year and lifeExpectancy, then further as the questions progressed i had to revisit as there was cleaning needed for fertilityRate as well. Name of country has "" in it hence i have removed those , there are "" in iso2/iso3 but i havent cleaned that as i will be using names for further computation
+### So after cleaning all data 11586 good cases are left.
+
+
+
+### 3)
+
+### 3)a)
+```{r}
+unique_countries=unique(gapminder$name)
+length(unique_countries)
+```
+### we have 203 unique countries
+
+
+
+### 3)b)
+```{r}
+first_last_year=range(gapminder$year)
+first_last_year
+```
+### The first year with valid life expectancy data is 1960 and the last year is 2019
+
+
+### 3)c)
+```{r}
+
+range_lifeExpectancy=range(gapminder$lifeExpectancy)
+range_lifeExpectancy
+
+library(tidyverse)
+result=filter(gapminder,lifeExpectancy %in% c(range_lifeExpectancy[1],range_lifeExpectancy[2]))
+result
+```
+### The lowest life Expectancy value is 18.91 years and highest value is 85.417(~85) years. For lowest life expectancy value country corresponds to Cambodia and year is 1977. For highest expectancy value country corresponds to San Marino and year is 2012.
+
+
+### 3)d)
+### The lowest life expectancy value of 18.91 years correspongind to the 1977 in Cambodia signifies the major event of Cambodian Genocide where there was systematic persecution and killing of cambodians by Khmer Rouge under the leader Pol Plot. As per wikipedia it included attack types like classisde, politicide, ethnic cleansing, communist terrorism, forced labour,famine leading to deaths of nearly quarter of Cambodia's population.
+
+
+
+
+### 4)
+
+### 4)a)
+```{r}
+
+library(ggplot2)
+
+g1<-ggplot(gapminder, aes(x=year,y=lifeExpectancy,group=name))+geom_line(color="gray",alpha=0.2)+
+    labs(y="Life Expectancy(years of age)",x= "Time")+ggtitle("Life Expectancy over Time")
+g1
+```
+
+### 4)b)
+```{r}
+country<-filter(gapminder,name %in% c("United States of America","Korea, Republic of","Cambodia","China","Japan","Afghanistan","Rwanda"))
+
+g2<-g1+geom_line(data=country,aes(group=name,color=name))
+g2
+```
+
+### In addition to US, Korea, Cambodia, China I chose countries like Japan and Afghanistan and Rwanda. Japan has had a high life expectancy over the years and Afghanistan is known to have an overal low life expectancy.Rwanda also had a genocide in 1993 hence to see the trend in lifeExpectancy I added that as well.Hence in order to see trends in that period with other countries I selected Japan and Afganistan as well.
+
+
+
+### 5)
+### The life expactancy for overall countries shows a steady growth of life Expectancy.The countries USA, Republic of Korea, China, Cambodia, Afghanistan, Japan overall shows an upward graph in the sense that as compared to 1960s  the life expectancy of all the chosen countries has increased with time. In 1960s initially U.S.A. has the highest life expectancy but Japan surpasses it and remains at the top till 2019. Afghanistan overall has a low life expectancy and is still the lowest till 2019. The anomaly is Cambodia has a very steep dip starting from 1970s with lowest at 1977 this is because of the historical event of Cambodian genocide which lasted from 1975-79. China also had low life expectancy in 1960 this was because of the Great Chinese Famine where deaths were between 15-45 million and the increase in the period from 1970-80 draws light to the Chinese economic reform which improved health care.
+
+
+### 6)
+```{r}
+
+g3<-ggplot(gapminder, aes(x=fertilityRate,y=lifeExpectancy,group=name))+geom_path(color="gray",alpha=0.4,arrow=arrow(length = unit(0.5, "cm")))+ggtitle("Life Expectancy and Fertility Rate")
+g3
+
+country<-filter(gapminder,name %in% c("United States of America","Korea, Republic of","Cambodia","China"))
+
+g4<-g3+geom_path(data=country,aes(group=name,color=name),arrow=arrow(length = unit(0.5, "cm")))
+g4
+```
+
+
+
+### 7)
+### Through the graph we can see that for all countries as the life expectancy increases the fertility rate lowers.For overall all countires when life expectancy is in the child bearing age the fertility rate is the high and as the age increases the fertility rate reduces(which supports the biological reason for it).From the previous graph we found that cambodia had lowest life expectancy at 18.91 in this graph we can see that during that time the fertility rate decreased from around 7 to the range of 5 then it increased and again decreased with increase of age of lifeExpectancy.For the highlighted countries mostly after the lifexpectancy of 50 years of age the fertility rate shows a steady decrease.
+
+
+
+## 1.2) Model life expectancy
+
+### 1)
+```{r}
+life_expect_distrib<-ggplot(gapminder,aes(x=lifeExpectancy))+geom_histogram(bins=30,color='black')
+life_expect_distrib
+
+
+log_lifeexpect_distrib<-ggplot(gapminder,aes(x=log(lifeExpectancy)))+geom_histogram(bins=30,color='black')
+log_lifeexpect_distrib
+```
+### The distribution is left skewed.Log transformations are used to make highly skewed distributions less skewed, hence it reduces the skewness of the data.But if we plot the log of life Expectancy the skewness does not reduce/ does not become more normal. Therefore using log transformation will have no effect on the life expectancy hence even if we do not use log transformation it is fine.
+
+
+### 2)
+```{r}
+newyear=gapminder$year-2000
+
+model1<-lm(lifeExpectancy~newyear,data=gapminder)
+summary(model1)
+
+```
+### The estimated line for regression is lifeExpectancy= 67.337+0.308*(year-2000). The model is statistically significant with p value <0.05 and variable time/year (minus 2000) is statistically significant as well. The slope is positive which means that a unit increase in year will increase the lifeExpectancy.
+
+
+
+### 3)
+### for the time(year) we have multiple values ranging from 1960 to 2019. If we use these years directly the regression of life expectancy on year (like 1960,1970) will imply intercept-which is value of lifeExpectancy in year 0(there is no such year present in calendrical terms). Hence we are kind of shifting the origin for better results. It will give us relative time lag which will help us better interpret results.
+
+
+### 4)
+### The estimated regression line can be written as lifeExpectancy= 67.337 + 0.308*time or lifeExpectancy= 67.337 + 0.308*year_x (as we renamed the column time to year)( also note here year_x= year- 2000. The average/mean life Expectancy when time is 0 is 67.It means that, as a baseline for x=0 2000( i.e. for year 2000 as we have taken year-2000) the lifeExpectancy would be 67.337 on an average and for each unit increase in year the mean lifeExpectancy will increase(as slope is positive) by 0.3088.
+
+
+
+### 5)
+```{r}
+unique(gapminder$region)
+
+model2<-lm(lifeExpectancy~newyear+factor(region),data=gapminder)
+summary(model2)
+
+
+```
+
+### 6)
+### The model is statistically significant as p value < 0.05 (hence null hypothesis is rejected). All the variables are statistically significant with p vakue< 0.05.The reference category is Africa.The output tells if life Expectancy of non-African continent is statistically equivalent or not compared to life Expectancy of Africa. The difference in the lifeExpectancy between regions of africa and other regions is represented by region dummies 15.9,12,21,and 13 for america,asia, europe and oceania which means these countries have a higher lifeExpectancy than Africa.The time(newyear represents time -2000) has beta value of 0.3049 which means that a unit increase in time will cause lifeExpectancy to be increased by 0.305.Time is statistically significant here as well and it has very minor difference with the previous model.
+
+
+
+### 7)
+```{r}
+
+newyear=gapminder$year-2000
+
+
+
+#GPD_PC column has na values hence removing those 
+gapminder=gapminder[complete.cases(gapminder[c(15)]),]
+dim(gapminder)
+colSums(is.na(gapminder))
+
+newyear=gapminder$year-2000
+model3<-lm(lifeExpectancy ~ newyear + region + log(GDP_PC)+fertilityRate,data=gapminder)
+summary(model3)
+
+```
+### The model is statistically significant as p<0.05 and all variables except region of Oceania is statistically significant.
+
+
+### 8)
+### The beta values for log(GDP per capita) is 2.49 and for feritilityRate is -2.2351. This means that log of gdp per capita affects the lifeExpectancy positively in the sense that a unit increase in log gdp per capita will increase life Expectancy by 2.49. Fertility Rate is negatively correlated to life Expectancy ( this trend we could see in the graph which we plotted above as well), i.e. increase in one unit fertility rate will decrease the life Expectancy by 2.23 .
+
+
+
+
+### 9)Coefficients are  the change in the response associated with a one-unit change of the predictor, all other predictors being held constant. When we add log gdp per capita and fertility rate we are looking at how the addition of these variables can make the model better or do these variable do not contribute towards the life Expectancy. Both lifeExpectancy and fertility rate are statistically significant which means they do impact the lifeExpectancy. as compared to model in ques 5 the model in 7 has higher r squared and adjusted r squared value . Higher r squared means better the model fits the data and higher adjusted r squared means the additional input variables are adding value to the data. The fertility rate has negative impact on the lifeExpectany it means that gdp and fertility rate affect the lifeexpectancy of europe which has hence caused the ranking to change.
+#### Reference : https://analyse-it.com/docs/user-guide/fit-model/linear/parameter-estimates 
+
+
+### 10)  
+```{r}
+rldata=gapminder %>% mutate(region=fct_relevel(gapminder$region,"Europe"))
+modelp=lm(lifeExpectancy ~ newyear + region + log(GDP_PC)+fertilityRate,data=rldata)
+summary(modelp)
+``` 
+ 
+### Based on the all the models, if reference group is Africa then America has highest life expectancy and Europe has lowest life expectancy.Life expectancy considering the GDP per capita and fertility rate will provide a better overall result, the model also had better r quare and adjusted r squared values which showed better fit of the data on the model. [Additional analysis : According the the model in 7 Americas has the highest life Expectancy and Europe has the lowest but in that model the reference region is Africa.I tried to see the model behaviour when reference category is changed to Europe and based on the model shown above the reference category for africa is statistically significant. The life expectancy of Africa is lower than reference category of Europe by 5.42. hence if reference category is Europe then Africa has the lowest life Expectancy.]
+
+
+
+
+
+
+
+
+## 2)Find Cheap Restaurants
+
+
+
+### 1)
+```{r}
+restaurants=read.csv("./data/nyc-italian-cheap.csv.bz2",sep="\t")
+head(restaurants)
+dim(restaurants)
+colSums(is.na(restaurants))
+
+range(restaurants$Food)
+range(restaurants$Decor)
+range(restaurants$Service)
+
+
+```
+### The data does not have any NA values/missing values or any implausible data.It does not have misisng values as well.
+
+
+### 2)
+### To predict if a restaurant is cheap or not we will have to use logistic regression. Logistic Regression is used when your Y variable(dependent/outcome/response) can take only two values i.e when dependent variable is categorical. Hence here we will predict whteher a restaurant is cheap(1) or expensive(0)  so for this classification we will use logistic regression.
+
+
+### 3)
+```{r}
+
+model_restaurant<-glm(Cheap~Food+Decor+Service+East,data=restaurants,family=binomial())
+summary(model_restaurant)
+
+```
+### I included the variables food, decor, service and east. Food ratings affect whether a restaurant is cheap or not but there are cases where some food items are rated good and cheap , hence i added decor - normally fancy restaurants spend money on their decor for a better customer experience and are known to be costly. Service ratings can also affect whether a restaurant is cheap or not, as fine dining experiences usually cost more. I included East because in new york 5th Ave is one of the most expensive shopping areas in the world. The brands etc if they attract wealthy individuals it can be that the restaurants as well match up to that standard and are costly
+### From the model we can see that the explanatory variables that are statistically significant are Food rating and Decor rating(p value <0.05). Service and east(located on 5th ave or not) are not statistically significant as p> 0.05 . Food Decor are negatively correlated to the whether a restaurant is cheap or not. i.e if food and service rating is less there is high probability that restaurant is cheap. Higher food rating reduces chances of restaurant being cheap by 0.47 and higher decor rating reduces chances by 0.632.It aligns with the common sense that very high quality food is usually expensive and high rating for decor usually means higher expenditure by restaurants for the beautification and fancy feel which in turn affects the price of the restaurant. 
+
+
+
+### 4)
+```{r}
+predict_data<-data.frame(Restaurant=c('Assagio Ristorante','Altura'),
+                         Food=c(23,18),
+                         Decor=c(17,15),
+                         Service=c(22,24),
+                         East=c(0,1))
+predict_data
+
+
+pn<-predict(model_restaurant,newdata=predict_data,type="response")
+pn
+```
+### the probability that observation 1 is a cheap restaurant is 0.2358 and the probability that observation 2 is a cheap restaurant is 0.902.Hence we can say that Restaurant 2 (ALtura)has higher probability of being cheap.
+
+
+
+## Theoretical Questions
+
+### 1.) 
+###  Variables of interest in an experiment(which are measured/observed) are response or dependent variable.Variables that affect response and can be measure by experimenter are called predictor / explanatory variable.
+###   Example for LOGISTIC REGRESSION : Logistic regression is used to calculate the probability of binary event/ classification problem. 
+###   Problem : Medical researchers studying the probability of a patient having a heart attack 
+###   Response Variable : heart attack (occurs or not)
+###   Predictor variable : age, weight, smoker/non smoker, alcohol consumption(how many days a week), exercise time, family history.
+###   Depending on the predictor variables, we can find the probability of a person getting a heart attack or not.
+
+###   Example for LINEAR REGRESSION : In linear regression the outcome/ dependent/response variable is continuous. if a simple independent variable is used as a predictor it is called simple linear regression and if more than two independent variables are used then it is called multiple linear regression
+###   Problem : Model to understand the best time to sell houses
+###   Response Variable : Maximum sales price of house
+###   Predictor variable : Age of house, locality of house, cost of houses in neighborhood, school near the house, drive time from shopping centres/parks, connectivity of the area 
+
+
+###  Example for PREDICTION : 
+###  Problem : Predict skin cancer mortality rate
+###  Response variable : Skin cancer mortality(no of deaths)
+###  Predictor variable : Age, gender,individual location(latitude), UV exposure, genetics/family history,number of moles 
+### skin cancer/melanoma mortality rate can be predicted based pn factor such as age and gender(as men are more likely to die of skin cancer than women), location/latitude which will tell about intensity of sun/UV exposure, genetics/family history of cancer and number of moles(as research suggests that higher moles can have greater probability of getting skin cancer)
+
+
+
+
+### 2)
+### In regression, confidence level describes the uncertainity of the sampling method. Confidence level has the formula Confidence level=1-alpha where alpha is the significance level. The confidence level is the percentage of times you expect to reproduce an estimate between the upper and lower bounds of the confidence interval, and is set by the alpha value.  
+#### (Reference:  https://www.scribbr.com/statistics/confidence-interval/)
+### For 5% confidence level, significance level is 95% hence if a coefficient is less than <0.95 then it is statistically significant. Statistical significance helps determine how likely a result is to be caused by chance or by a factor of interest.
+
+
+### 3)
+
+### a)
+### MODEL L1
+
+
+|        |                  | predicted   |                  |   |
+|--------|------------------|-------------|------------------|---|
+|        |                  | Intruder(+) | approved user(-) |   |
+| actual | Intruder(+)      | 4           | 3                |   |
+|        | approved user(-) | 0           | 3                |   |
+
+
+
+### MODEL L2
+
+|        |                  | predicted   |                  |   |
+|--------|------------------|-------------|------------------|---|
+|        |                  | Intruder(+) | approved user(-) |   |
+| actual | Intruder(+)      | 7           | 0                |   |
+|        | approved user(-) | 1           | 2                |   |
+
+
+
+### b)
+### Accuracy= TP+TN/(TP+TN+FP+FN)
+### Precision = TP/(TP+FP)
+### Recall= TP/(TP+FN)
+
+
+### FOR MODEL L1
+### Accuracy = (4+3)/(4+3+3)=7/10=0.7
+### Precision = 4/(4+0)=1
+### Recall =4/(4+3)=4/7=0.5714
+
+
+### FOR MODEL L2
+### Accuracy=7+2/(7+2+1)=9/10=0.9
+### Precision = 7/(7+1)=7/8= 0.875
+### Recall= 7/(7+0)=7/7=0
+
+
+
+### c)
+### Accoridng to me Model L2 is better. Accuracy measures how often classifer makes correct predictions , Precision tells about out of all predicted intruders what percentage are truly intruders and recall will tell about out of total actual intruders what percentage are predicted positive or intruders. I will reccomend to implement model L2 for the reason that accuracy of the model is better than L1 . Another reason is that we want is that recall for L2 is 100% which means that if in actual there out of 100 total users if intruders are 70 and 30 are actual users then model can predict all 70 of them to be intruders. this is not the case with model L1. Model l2 has a decent precision as well which means if out of 100 model predicts that there are 70 intruders then 87.5% of them are truly intruders which accounts for around 61 intruders.For model l1 the precision recall tradeoff has more gap than model l2 which offers both at good percentage.
+
+
+
